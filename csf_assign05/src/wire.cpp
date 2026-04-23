@@ -82,9 +82,11 @@ std::string encode_order(const std::shared_ptr<Order> &order) {
   if (!order || order->get_num_items() == 0) {
     throw InvalidMessage("Order cannot be empty");
   }
-  // create formatted order
+  // create string to store formatted order
   std::string s;
   s += std::to_string(order->get_id()) + "," + Wire::order_status_to_str(order->get_status()) + ",";
+
+  // format each item in order
   for (int i = 0; i < order->get_num_items(); ++i) {
     if (i > 0) {
       s += ";";
@@ -93,6 +95,7 @@ std::string encode_order(const std::shared_ptr<Order> &order) {
     s += std::to_string(item->get_order_id()) + ":" + std::to_string(item->get_id()) + ":" + Wire::item_status_to_str(item->get_status());
     s += ":" + item->get_desc() + ":" + std::to_string(item->get_qty());
   }
+
   return s;
 }
 
@@ -144,7 +147,7 @@ void encode(const Message &msg, std::string &s) {
   // extract message
   s = message_type_to_str(msg.get_type());
 
-  // format different messages
+  // encode message according to type
   switch (msg.get_type()) {
     
     case MessageType::DISP_HEARTBEAT:
@@ -181,10 +184,50 @@ void encode(const Message &msg, std::string &s) {
     
     default:
       throw InvalidMessage("Message type was not recognized");
+  }
 }
 
 void decode(const std::string &s, Message &msg) {
-  // TODO: implement
+
+  // extract substrings from message to decode them
+  std::vector<std::string> message_substrings = Util::split(s, '|');
+  if (message_substrings.empty()) {
+    throw InvalidMessage("empty message string");
+  }
+
+  // handle invalid messages
+  MessageType message_type = str_to_message_type(message_substrings[0]);
+  if (message_type == MessageType::INVALID) {
+    throw InvalidMessage("message type not recognized");
+  }
+  
+  // decode message according to type
+  switch (message_type) {
+
+    // handle heartbeat message
+    case MessageType::DISP_HEARTBEAT:
+      if (message_substrings.size() != 1) {
+        throw InvalidMessage("Invalid format for DISP_HEARTBEAT");
+      }
+      msg = Message(message_type);
+      break;
+    
+    // handle login message
+    case MessageType::LOGIN:
+      if (message_substrings.size() != 3) {
+        throw InvalidMessage("Invalid format for LOGIN message");
+      }
+      {
+        ClientMode my_mode = str_to_client_mode(message_substrings[1]);
+        if (my_mode == ClientMode::INVALID)
+          throw InvalidMessage("Invalid client mode");
+        msg = Message(message_type, my_mode, message_substrings[2]);
+      }
+      break;
+
+    default:
+      throw InvalidMessage("Message type is not recognized");
+  }
 }
 
 }
