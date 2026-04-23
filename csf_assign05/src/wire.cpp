@@ -102,7 +102,7 @@ std::string encode_order(const std::shared_ptr<Order> &order) {
 }
 
 // ensure that order message is valid
-int validate_message(const std::string &s, int min) {
+int validate_id_message(const std::string &s, int min) {
  if (s.empty()) {
     throw InvalidMessage("message is empty");
  }
@@ -144,7 +144,7 @@ std::shared_ptr<Order> decode_order(const std::string &s) {
   std::string items_str = s.substr(status_delim + 1);
 
   // check if order message is valid
-  int my_id = validate_message(id_str, 1);
+  int my_id = validate_id_message(id_str, 1);
   OrderStatus my_status = Wire::str_to_order_status(status_str);
   if (my_status == OrderStatus::INVALID) {
     throw InvalidMessage("Order status invalid");
@@ -168,14 +168,14 @@ std::shared_ptr<Order> decode_order(const std::string &s) {
     }
 
     // extract substrings from order message and validate them
-    int current_order_id = validate_message(item_message[0], 1);
-    int current_id = validate_message(item_message[1], 1);
+    int current_order_id = validate_id_message(item_message[0], 1);
+    int current_id = validate_id_message(item_message[1], 1);
     ItemStatus item_status = Wire::str_to_item_status(item_message[2]);
     if (item_status == ItemStatus::INVALID) {
       throw InvalidMessage("Item status not of valid format");
     }
     std::string item_description = item_message[3];
-    int item_quantity = validate_message(item_message[4], 1);
+    int item_quantity = validate_id_message(item_message[4], 1);
 
     // create order
     order->add_item(std::make_shared<Item>(current_order_id, current_id, item_status, item_description, item_quantity));
@@ -314,19 +314,57 @@ void decode(const std::string &s, Message &msg) {
     case MessageType::QUIT:
     case MessageType::OK:
     case MessageType::ERROR:
-      if (message_substrings.size() != 2)
+      if (message_substrings.size() != 2) {
         throw InvalidMessage("Invalid quit, ok, or error message");
+      }
       msg = Message(message_type, message_substrings[1]);
       break;
 
     // handle orders
     case MessageType::ORDER_NEW:
     case MessageType::DISP_ORDER:
-      if (message_substrings.size() != 2)
+      if (message_substrings.size() != 2) {
         throw InvalidMessage("Invalid order message");
+      }
       {
         auto order = decode_order(message_substrings[1]);
         msg = Message(message_type, order);
+      }
+      break;
+
+    // handle items
+    case MessageType::ITEM_UPDATE:
+    case MessageType::DISP_ITEM_UPDATE:
+      
+      // handle invalid format
+      if (message_substrings.size() != 4) {
+        throw InvalidMessage("Invalid item message format");
+      }
+
+      // extract and validate item substrings
+      {
+        int order_id = validate_id_message(message_substrings[1], 1);
+        int item_id = validate_id_message(message_substrings[2], 1);
+        ItemStatus my_status = str_to_item_status(message_substrings[3]);
+        if (my_status == ItemStatus::INVALID)
+          throw InvalidMessage("Item status id not valid");
+        msg = Message(message_type, order_id, item_id, my_status);
+      }
+      break;
+
+    // handle order updates
+    case MessageType::ORDER_UPDATE:
+    case MessageType::DISP_ORDER_UPDATE:
+      if (message_substrings.size() != 3) {
+        throw InvalidMessage("Order update message format not valid");
+      }
+      {
+        int order_id = validate_id_message(message_substrings[1], 1);
+        OrderStatus order_status = str_to_order_status(message_substrings[2]);
+        if (order_status == OrderStatus::INVALID) {
+          throw InvalidMessage("Order status not valid");
+        }
+        msg = Message(message_type, order_id, order_status);
       }
       break;
 
