@@ -148,6 +148,15 @@ int main(int argc, char **argv) {
   }
   int fd = connectLogin(argv[1], argv[2], ClientMode::UPDATER);
 
+  try {
+    input(fd);
+  } catch (Exception &ex) {
+    std::cerr << "Error: " << ex.what() << "\n";
+    ::close(fd);
+    return 1;
+  }
 
-  // TODO: implement
+  ::close(fd);
+  return 0;
+  
 }

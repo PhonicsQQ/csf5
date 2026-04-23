@@ -21,6 +21,25 @@ const char CLEAR_SCREEN[] = "\x1b[2J\x1b[H";
 
 }
 
+void updateScreen(std::map<int, std::shared_ptr<Order>> &orders) {
+  std::cout << CLEAR_SCREEN;
+  for (auto it = orders.begin(); it != orders.end(); it++) {
+    printOrder(it->second);
+  }
+  std::cout.flush();
+}
+
+void printOrder(std::shared_ptr<Order> order) {
+  std::cout << "Order " << order->get_id() << ": " << Wire::order_status_to_str(order->get_status()) << "\n";
+  for (int i = 0; i < order->get_num_items(); i++) {
+    std::shared_ptr<Item> item = order->at(i);
+
+    std::cout << "  Item " << item->get_id() << ": " << Wire::item_status_to_str(item->get_status()) << "\n";
+
+    std::cout << "    " << item->get_desc() << ", Quantity "
+              << item->get_qty() << "\n";
+  }
+}
 // TODO: implement helper functions/clases as needed
 
 int main(int argc, char **argv) {
