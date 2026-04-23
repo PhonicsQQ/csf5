@@ -70,9 +70,9 @@ void orderNew(int fd) {
   auto order = std::make_shared<Order>(1, OrderStatus::NEW);
   for (int i = 0; i < num_items; ++i) {
     //get item id and item details
+    int item_id = getInt();
     std::string desc = getline();
     int qty = getInt();
-    int item_id = getInt();
 
     //add item to order
     order->add_item(
