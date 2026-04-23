@@ -78,6 +78,7 @@ const std::unordered_map<std::string, OrderStatus> s_str_to_order_status(
   s_str_to_order_status_vec.end()
 );
 
+// take in order and turn it into message string
 std::string encode_order(const std::shared_ptr<Order> &order) {
   if (!order || order->get_num_items() == 0) {
     throw InvalidMessage("Order cannot be empty");
@@ -88,6 +89,7 @@ std::string encode_order(const std::shared_ptr<Order> &order) {
 
   // format each item in order
   for (int i = 0; i < order->get_num_items(); ++i) {
+    // while this order is not the last order
     if (i > 0) {
       s += ";";
     }
@@ -97,6 +99,89 @@ std::string encode_order(const std::shared_ptr<Order> &order) {
   }
 
   return s;
+}
+
+// ensure that order message is valid
+int validate_message(const std::string &s, int min) {
+ if (s.empty()) {
+    throw InvalidMessage("message is empty");
+ }
+  for (char c : s) {
+    if (c < '0' || c > '9') {
+      throw InvalidMessage("invalid character detected");
+    }
+  }
+  try {
+    int current = std::stoi(s);
+    if (current < min) {
+      throw InvalidMessage("out-of-range character detected");
+    }
+    return current;
+  } 
+  catch (std::out_of_range &) {
+    throw InvalidMessage("out-of-range character detected");
+  }
+}
+
+// take in message string and turn it into order
+std::shared_ptr<Order> decode_order(const std::string &s) {
+  
+  // ensure that first substring in order (id) exists
+  size_t id_delim = s.find(',');
+  if (id_delim == std::string::npos) {
+    throw InvalidMessage("Missing comma separating order id from order status");
+  }
+
+  // ensure that second substring in order (status) exists
+  size_t status_delim = s.find(',', id_delim + 1);
+  if (status_delim == std::string::npos) {
+    throw InvalidMessage("Missing comma separating order status from order items");
+  }
+
+  // extract id, status, and items
+  std::string id_str = s.substr(0, id_delim);
+  std::string status_str = s.substr(id_delim + 1, status_delim - id_delim - 1);
+  std::string items_str = s.substr(status_delim + 1);
+
+  // check if order message is valid
+  int my_id = validate_message(id_str, 1);
+  OrderStatus my_status = Wire::str_to_order_status(status_str);
+  if (my_status == OrderStatus::INVALID) {
+    throw InvalidMessage("Order status invalid");
+  }
+
+  //validate items in message
+  auto order = std::make_shared<Order>(my_id, my_status);
+  if (items_str.empty()) {
+    throw InvalidMessage("Cannot submit an empty order");
+  }
+  std::vector<std::string> item_strs = Util::split(items_str, ';');
+  if (item_strs.empty()) {
+    throw InvalidMessage("Cannot submit an empty order");
+  }
+
+  // go through each item and validate it
+  for (const std::string &item_str : item_strs) {
+    std::vector<std::string> item_message = Util::split(item_str, ':');
+    if (item_message.size() != 5) {
+      throw InvalidMessage("Item message format invalid");
+    }
+
+    // extract substrings from order message and validate them
+    int current_order_id = validate_message(item_message[0], 1);
+    int current_id = validate_message(item_message[1], 1);
+    ItemStatus item_status = Wire::str_to_item_status(item_message[2]);
+    if (item_status == ItemStatus::INVALID) {
+      throw InvalidMessage("Item status not of valid format");
+    }
+    std::string item_description = item_message[3];
+    int item_quantity = validate_message(item_message[4], 1);
+
+    // create order
+    order->add_item(std::make_shared<Item>(current_order_id, current_id, item_status, item_description, item_quantity));
+  }
+
+  return order;
 }
 
 } // end of anonymous namespace for helper functions
@@ -222,6 +307,26 @@ void decode(const std::string &s, Message &msg) {
         if (my_mode == ClientMode::INVALID)
           throw InvalidMessage("Invalid client mode");
         msg = Message(message_type, my_mode, message_substrings[2]);
+      }
+      break;
+
+    // handle status messages
+    case MessageType::QUIT:
+    case MessageType::OK:
+    case MessageType::ERROR:
+      if (message_substrings.size() != 2)
+        throw InvalidMessage("Invalid quit, ok, or error message");
+      msg = Message(message_type, message_substrings[1]);
+      break;
+
+    // handle orders
+    case MessageType::ORDER_NEW:
+    case MessageType::DISP_ORDER:
+      if (message_substrings.size() != 2)
+        throw InvalidMessage("Invalid order message");
+      {
+        auto order = decode_order(message_substrings[1]);
+        msg = Message(message_type, order);
       }
       break;
 
