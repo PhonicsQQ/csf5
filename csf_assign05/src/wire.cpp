@@ -78,11 +78,23 @@ const std::unordered_map<std::string, OrderStatus> s_str_to_order_status(
   s_str_to_order_status_vec.end()
 );
 
-// TODO: add private helper functions.
-// Suggestion: functions to help encode and decode components
-// of messages (in support of the Wire::encode and Wire::decode
-// functions) would be a good idea.
-
+std::string encode_order(const std::shared_ptr<Order> &order) {
+  if (!order || order->get_num_items() == 0) {
+    throw InvalidMessage("Order cannot be empty");
+  }
+  // create formatted order
+  std::string s;
+  s += std::to_string(order->get_id()) + "," + Wire::order_status_to_str(order->get_status()) + ",";
+  for (int i = 0; i < order->get_num_items(); ++i) {
+    if (i > 0) {
+      s += ";";
+    }
+    auto item = order->at(i);
+    s += std::to_string(item->get_order_id()) + ":" + std::to_string(item->get_id()) + ":" + Wire::item_status_to_str(item->get_status());
+    s += ":" + item->get_desc() + ":" + std::to_string(item->get_qty());
+  }
+  return s;
+}
 
 } // end of anonymous namespace for helper functions
 
@@ -129,7 +141,46 @@ OrderStatus str_to_order_status(const std::string &s) {
 }
 
 void encode(const Message &msg, std::string &s) {
-  // TODO: implement
+  // extract message
+  s = message_type_to_str(msg.get_type());
+
+  // format different messages
+  switch (msg.get_type()) {
+    
+    case MessageType::DISP_HEARTBEAT:
+      break;
+    
+    case MessageType::LOGIN:
+      s += "|" + client_mode_to_str(msg.get_client_mode()) + "|" + msg.get_str();
+      break;
+
+    case MessageType::QUIT:
+    case MessageType::OK:
+    case MessageType::ERROR:
+      s += "|" + msg.get_str();
+      break;
+    
+    // orders
+    case MessageType::ORDER_NEW:
+    case MessageType::DISP_ORDER:
+      s += "|" + encode_order(msg.get_order());
+      break;
+    
+    // item updates
+    case MessageType::ITEM_UPDATE:
+    case MessageType::DISP_ITEM_UPDATE:
+      s += "|" + std::to_string(msg.get_order_id()) + "|" + std::to_string(msg.get_item_id()) + "|" + item_status_to_str(msg.get_item_status());
+      break;
+
+    // order updates
+    case MessageType::ORDER_UPDATE:
+    case MessageType::DISP_ORDER_UPDATE:
+      // type|order_id|order_status
+      s += "|" + std::to_string(msg.get_order_id()) + "|" + order_status_to_str(msg.get_order_status());
+      break;
+    
+    default:
+      throw InvalidMessage("Message type was not recognized");
 }
 
 void decode(const std::string &s, Message &msg) {
