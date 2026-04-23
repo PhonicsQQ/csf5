@@ -40,7 +40,52 @@ void printOrder(std::shared_ptr<Order> order) {
               << item->get_qty() << "\n";
   }
 }
-// TODO: implement helper functions/clases as needed
+
+void receive(int fd) {
+  std::map<int, std::shared_ptr<Order>> orders;
+  while (true) {
+    std::string in;
+    IO::receive(fd, in);
+    Message msg;
+    Wire::decode(in, msg);
+
+    //check if running
+    if (msg.get_type() == MessageType::DISP_HEARTBEAT)
+      continue;
+
+    //ORDER
+    if (msg.get_type() == MessageType::DISP_ORDER) {
+      if (!msg.has_order()) {
+        throw ProtocolError("DISP_ORDER missing order");
+      }
+      orders[msg.get_order()->get_id()] = msg.get_order();
+
+    //ITEM UPDATE
+    } else if (msg.get_type() == MessageType::DISP_ITEM_UPDATE) {
+      auto it = orders.find(msg.get_order_id());
+      if (it != orders.end()) {
+        if (auto item = it->second->find_item(msg.get_item_id())) {
+          item->set_status(msg.get_item_status());
+        }
+      }
+    //ORDER UPDATE
+    } else if (msg.get_type() == MessageType::DISP_ORDER_UPDATE) {
+      auto it = orders.find(msg.get_order_id());
+      if (it != orders.end()) {
+        if (msg.get_order_status() == OrderStatus::DELIVERED) {
+          orders.erase(it);
+        } else {
+          it->second->set_status(msg.get_order_status());
+        }
+      }
+    //INVALID RESPONSE
+    } else {
+      throw ProtocolError("invalid response");
+    }
+
+    updateScreen(orders);
+  }
+}
 
 int main(int argc, char **argv) {
   if (argc != 3) {
@@ -48,5 +93,20 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // TODO: implement
+  //connect
+  int fd = connectLogin(argv[1], argv[2], ClientMode::DISPLAY);
+  std::cout << CLEAR_SCREEN << std::flush;
+
+  try {
+    //look for valid reads
+    receive(fd);
+  } catch (Exception &ex) {
+    //invalid response
+    std::cerr << "Error: " << ex.what() << "\n";
+    ::close(fd);
+    return 1;
+  }
+
+  ::close(fd);
+  return 0;
 }
