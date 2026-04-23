@@ -11,6 +11,8 @@
 #include "except.h"
 #include "util.h"
 #include "client_util.h"
+#include <map>
+#include <memory>
 
 
 
