@@ -13,16 +13,30 @@
 
 namespace {
 
-// TODO: you can define standalone helper functions here
+
+void *create_client(void *my_client) {
+  
+  // detach thread
+  std::unique_ptr<Client> client(static_cast<Client *>(my_client));
+  pthread_detach(pthread_self());
+
+  // run chat and catch all exceptions
+  try {
+    client->chat();
+  } catch (...) {}
+
+  return nullptr;
+}
 
 }
 
 Server::Server() {
   next_order_id = 1000;
-  pthread_mutix_init(&my_lock, nullptr);
+  pthread_mutex_init(&my_lock, nullptr);
 }
 
 Server::~Server() {
+  pthread_mutex_destroy(&my_lock);
 }
 
 void Server::server_loop(const char *port) {
@@ -31,7 +45,26 @@ void Server::server_loop(const char *port) {
     throw IOException(std::string("open_listenfd failed: ") + std::strerror(errno));
 
   while (true) {
-    // TODO: accept connections from clients
+
+    // accept TCP connection from client
+    struct sockaddr_storage client_address;
+    socklen_t address_length = sizeof(client_address);
+    int client_fd = accept(server_fd, reinterpret_cast<struct sockaddr *>(&client_address), &address_length);
+
+    // ensure that client file was correctly accepted. If not, try again.
+    if (client_fd < 0) {
+      continue;
+    }
+
+    // create a new instance of the Client class to manage the resources needed by a client thread
+    Client *client = new Client(client_fd, this);
+
+    // start a new thread to communicate with the client
+    pthread_t my_thread;
+    if (pthread_create(&my_thread, nullptr, create_thread, client) != 0) {
+      // handle unsuccessful creation
+      delete client;
+    }
   }
 }
 
