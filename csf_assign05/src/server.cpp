@@ -14,7 +14,7 @@
 namespace {
 
 
-void *create_client(void *my_client) {
+void *create_thread(void *my_client) {
   
   // detach thread
   std::unique_ptr<Client> client(static_cast<Client *>(my_client));
@@ -68,5 +68,25 @@ void Server::server_loop(const char *port) {
   }
 }
 
-// TODO: other member functions
-
+int Server::create_order(std::shared_ptr<Order> order) {
+  int order_id;
+ 
+  {
+    // ensure that only this thread is mutating order_id
+    Guard my_guard(my_lock);
+    order_id = next_order_id++;
+ 
+    // Update order id
+    order->set_id(order_id);
+    for (int i = 0; i < order->get_num_items(); i++) {
+      order->at(i)->set_order_id(order_id);
+    }
+    my_orders[order_id] = order;
+ 
+    // Broadcast DISP_ORDER to all connected display clients.
+    auto message = std::make_shared<Message>(MessageType::DISP_ORDER, order->duplicate());
+    broadcast_to_displays_locked(message);
+  }
+ 
+  return order_id;
+}
