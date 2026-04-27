@@ -14,7 +14,12 @@ class Message;
 class Server {
 private:
   // Private data
-  // TODO: add fields
+  std::unordered_set<Client *> my_clients;
+  std::unordered_map<int, std::shared_ptr<Order>> my_orders;
+  int next_order_id;
+
+  // thread lock to ensure that next_order_id cannot be mutated by multiple threads at once
+  pthread_mutex_t my_lock;
 
   // no value semantics
   NO_VALUE_SEMANTICS(Server);
