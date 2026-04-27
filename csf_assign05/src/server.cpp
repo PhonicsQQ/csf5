@@ -70,7 +70,6 @@ void Server::server_loop(const char *port) {
 
 int Server::create_order(std::shared_ptr<Order> order) {
   int order_id;
- 
   {
     // ensure that only this thread is mutating order_id
     Guard my_guard(my_lock);
@@ -85,8 +84,14 @@ int Server::create_order(std::shared_ptr<Order> order) {
  
     // Broadcast DISP_ORDER to all connected display clients.
     auto message = std::make_shared<Message>(MessageType::DISP_ORDER, order->duplicate());
-    broadcast_to_displays_locked(message);
+    broadcast(message);
   }
  
   return order_id;
+}
+
+void Server::broadcast(std::shared_ptr<Message> message) {
+  // enqueue message and add to client's queues
+  for (Client *client : my_clients)
+    client->get_queue().enqueue(message->duplicate());
 }

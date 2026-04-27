@@ -34,11 +34,13 @@ public:
   void server_loop(const char *port);
 
   // Create new order and broadcast MessageType::DISP_ORDER to all
-  // connected display clients
+  // connected display clients. Returns order id
   int create_order(std::shared_ptr<Order> order);
 
 private:
-  // TODO: private member functions
+  // CALLER MUST LOCK THREAD. Display message to all connected display clients.
+  // This function does not return.
+  void broadcast(std::shared_ptr<Message> message);
 };
 
 #endif // SERVER_H
