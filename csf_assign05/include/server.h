@@ -33,7 +33,9 @@ public:
   // not return.
   void server_loop(const char *port);
 
-  // TODO: additional public member functions
+  // Create new order and broadcast MessageType::DISP_ORDER to all
+  // connected display clients
+  int create_order(std::shared_ptr<Order> order);
 
 private:
   // TODO: private member functions
