@@ -18,7 +18,8 @@ namespace {
 }
 
 Server::Server() {
-  // TODO: initialization
+  next_order_id = 1000;
+  pthread_mutix_init(&my_lock, nullptr);
 }
 
 Server::~Server() {
