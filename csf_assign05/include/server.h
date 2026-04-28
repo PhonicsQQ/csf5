@@ -14,7 +14,12 @@ class Message;
 class Server {
 private:
   // Private data
-  // TODO: add fields
+  std::unordered_set<Client *> my_clients;
+  std::unordered_map<int, std::shared_ptr<Order>> my_orders;
+  int next_order_id;
+
+  // thread lock to ensure that next_order_id cannot be mutated by multiple threads at once
+  pthread_mutex_t my_lock;
 
   // no value semantics
   NO_VALUE_SEMANTICS(Server);
@@ -28,10 +33,19 @@ public:
   // not return.
   void server_loop(const char *port);
 
-  // TODO: additional public member functions
+  // Create new order and broadcast MessageType::DISP_ORDER to all
+  // connected display clients. Returns order id
+  int create_order(std::shared_ptr<Order> order);
+
+  // Update an item. Handles errors with SemanticErrors
+  // Otherwise, broadcasts MessageType::UPDATE_ITEM to all connected display clients
+  // This function does not return.
+  void update_item(int order_id, int item_id, ItemStatus new_status);
 
 private:
-  // TODO: private member functions
+  // CALLER MUST LOCK THREAD. Display message to all connected display clients.
+  // This function does not return.
+  void broadcast(std::shared_ptr<Message> message);
 };
 
 #endif // SERVER_H
