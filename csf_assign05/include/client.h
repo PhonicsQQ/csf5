@@ -20,7 +20,8 @@ class Client {
 private:
   int m_fd; // socket file descriptor for communicating with client
   Server *m_server; // pointer to Server instance
-  // TODO: add additional fields if needed
+  ClientMode m_mode; // current mode of the client (e.g., LOGIN, CHAT, DISPLAY)
+  MessageQueue m_queue; // queue of messages to be sent to the client
 
   NO_VALUE_SEMANTICS(Client);
 
@@ -42,11 +43,14 @@ public:
   // client socket), so caller should ensure that the thread
   // is terminated nicely and resources are cleaned up.
   void chat();
-
-  // TODO: more public member functions
+  MessageQueue &get_queue() { return m_queue; }
+  
 
 private:
-  // TODO: private member functions
+  void login();
+  void update_chat();
+  void chat_display();
+  void send_msg(const Message &msg);
 };
 
 #endif // CLIENT_H
