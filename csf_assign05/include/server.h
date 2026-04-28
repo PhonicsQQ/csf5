@@ -38,9 +38,15 @@ public:
   int create_order(std::shared_ptr<Order> order);
 
   // Update an item. Handles errors with SemanticErrors
-  // Otherwise, broadcasts MessageType::UPDATE_ITEM to all connected display clients
+  // Otherwise, broadcasts MessageType::DISP_ITEM_UPDATE to all connected display clients
   // This function does not return.
   void update_item(int order_id, int item_id, ItemStatus new_status);
+
+  // Update an order. Handles errors with SemanticErrors.
+  // Otherwise, broadcasts MessageType::DISP_ORDER_UPDATE to all connected display clients.
+  // Removes all completed orders
+  // This function does not return.
+  void update_order(int order_id, OrderStatus new_status);
 
 private:
   // CALLER MUST LOCK THREAD. Display message to all connected display clients.

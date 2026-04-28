@@ -99,7 +99,7 @@ void Server::broadcast(std::shared_ptr<Message> message) {
 void Server::update_item(int order_id, int item_id, ItemStatus new_status) {
   
   // ensure thread is locked
-  Guard g(my_lock);
+  Guard my_guard(my_lock);
  
   // check orders for order_id
   auto my_iter = my_orders.find(order_id);
@@ -160,4 +160,33 @@ void Server::update_item(int order_id, int item_id, ItemStatus new_status) {
     auto message = std::make_shared<Message>(MessageType::DISP_ORDER_UPDATE, order_id, new_order_status);
     broadcast(message);
   }
+}
+
+void Server::update_order(int order_id, OrderStatus new_status) {
+  // ensure threads are locked
+  Guard my_guard(my_lock);
+ 
+  // ensure that order id is valid
+  auto my_iter = my_orders.find(order_id);
+  if (my_iter == my_orders.end()) {
+    throw SemanticError("Order with order_id not found");
+  }
+
+  // retreive order
+  auto &order = my_iter->second;
+  OrderStatus current = order->get_status();
+ 
+  // ensure order update is valid (must be not done status to delivered)
+  if (current != OrderStatus::DONE || new_status != OrderStatus::DELIVERED) {
+    throw SemanticError("cannot transition from current status to new_status");
+  }
+ 
+  order->set_status(new_status);
+ 
+  // broadcast message
+  auto message = std::make_shared<Message>(MessageType::DISP_ORDER_UPDATE, order_id, new_status);
+  broadcast(message);
+ 
+  // Remove delivered order
+  my_orders.erase(my_iter);
 }
