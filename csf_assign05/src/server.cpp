@@ -190,3 +190,13 @@ void Server::update_order(int order_id, OrderStatus new_status) {
   // Remove delivered order
   my_orders.erase(my_iter);
 }
+
+void Server::add_client(Client *c) {
+  Guard my_guard(my_lock);
+  my_clients.insert(c);
+}
+
+void Server::remove_client(Client *c) {
+  Guard my_guard(my_lock);
+  my_clients.erase(c);
+}

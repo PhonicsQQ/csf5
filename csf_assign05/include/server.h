@@ -48,6 +48,14 @@ public:
   // This function does not return.
   void update_order(int order_id, OrderStatus new_status);
 
+  // Add a display client to my_clients.
+  // This function does not return
+  void add_client(Client *c);
+
+  // Remove a display client to my_clients.
+  // This function does not return
+  void remove_client(Client *c);
+
 private:
   // CALLER MUST LOCK THREAD. Display message to all connected display clients.
   // This function does not return.
