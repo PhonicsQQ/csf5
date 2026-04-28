@@ -50,11 +50,14 @@ public:
 
   // Add a display client to my_clients.
   // This function does not return
-  void add_client(Client *c);
+  void add_client(Client *client);
 
   // Remove a display client to my_clients.
   // This function does not return
-  void remove_client(Client *c);
+  void remove_client(Client *client);
+
+  // Send MessageType::DISP_ORDER when a new client connects
+  void send_order_message(Client *client);
 
 private:
   // CALLER MUST LOCK THREAD. Display message to all connected display clients.

@@ -191,12 +191,31 @@ void Server::update_order(int order_id, OrderStatus new_status) {
   my_orders.erase(my_iter);
 }
 
-void Server::add_client(Client *c) {
+void Server::add_client(Client *client) {
   Guard my_guard(my_lock);
-  my_clients.insert(c);
+  my_clients.insert(client);
 }
 
-void Server::remove_client(Client *c) {
+void Server::remove_client(Client *client) {
   Guard my_guard(my_lock);
-  my_clients.erase(c);
+  my_clients.erase(client);
+}
+
+void Server::send_order_message(Client *client) {
+  std::unordered_set<std::shared_ptr<Order>> current_clients;
+  {
+    // ensure threads are locked
+    Guard my_guard(my_lock);
+
+    // copy orders
+    for (auto &current_order : my_orders) {
+      current_clients.insert(current_order.second->duplicate());
+    }
+  }
+
+  // send message
+  for (auto &order : current_clients) {
+    auto message = std::make_shared<Message>(MessageType::DISP_ORDER, order);
+    client->get_queue().enqueue(message);
+  }
 }
